@@ -107,8 +107,10 @@ async def stop(interaction: discord.Interaction):
 async def play(interaction: discord.Interaction, ricerca: str):
     await interaction.response.defer()
 
-    # TODO: FIX THIS STUPID FUCKING SHIT, HANDLE YOUR EXCEPTIONS!
-    voice_channel = interaction.user.voice.channel
+    try:
+        voice_channel = interaction.user.voice.channel
+    except AttributeError:
+        voice_channel = None
 
     if voice_channel is None:
         await interaction.followup.send("You must be in a voice channel.")
