@@ -13,7 +13,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 
-# Song queue dict
+# Song queues dict (a queue for each server!)
 SONG_QUEUES = {}
 
 async def search_ytdlp_async(query, ydl_opts):
@@ -40,9 +40,9 @@ async def skip(interaction: discord.Interaction):
     if interaction.guild.voice_client and (
             interaction.guild.voice_client.is_playing() or interaction.guild.voice_client.is_paused()):
         interaction.guild.voice_client.stop()
-        await interaction.response.send_message("Skipped the current song.")
+        await interaction.response.send_message("Canzone saltata.", ephemeral=True)
     else:
-        await interaction.response.send_message("Not playing anything to skip.")
+        await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
 
 @bot.tree.command(name="pause", description="Metti in pausa la riproduzione.")
@@ -51,15 +51,15 @@ async def pause(interaction: discord.Interaction):
 
     # Check if the bot is in a voice channel
     if voice_client is None:
-        return await interaction.response.send_message("I'm not in a voice channel.")
+        return await interaction.response.send_message("Non sono in un canale vocale!", ephemeral=True)
 
     # Check if something is actually playing
     if not voice_client.is_playing():
-        return await interaction.response.send_message("Nothing is currently playing.")
+        return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     # Pause the track
     voice_client.pause()
-    await interaction.response.send_message("Playback paused!")
+    await interaction.response.send_message("Ho messo in pausa la riproduzione.", ephemeral=True)
 
 
 @bot.tree.command(name="resume", description="Riprendi la riproduzione messa in pausa.")
@@ -68,15 +68,15 @@ async def resume(interaction: discord.Interaction):
 
     # Check if the bot is in a voice channel
     if voice_client is None:
-        return await interaction.response.send_message("I'm not in a voice channel.")
+        return await interaction.response.send_message("Non sono in un canale vocale!", ephemeral=True)
 
     # Check if it's actually paused
     if not voice_client.is_paused():
-        return await interaction.response.send_message("I’m not paused right now.")
+        return await interaction.response.send_message("La riproduzione non è in pausa!", ephemeral=True)
 
     # Resume playback
     voice_client.resume()
-    await interaction.response.send_message("Playback resumed!")
+    await interaction.response.send_message("Riprendo la riproduzione", ephemeral=True)
 
 
 @bot.tree.command(name="stop", description="Ferma la riproduzione.")
@@ -85,7 +85,7 @@ async def stop(interaction: discord.Interaction):
 
     # Check if the bot is in a voice channel
     if not voice_client or not voice_client.is_connected():
-        return await interaction.response.send_message("I'm not connected to any voice channel.")
+        return await interaction.response.send_message("Non sono in un canale vocale!", ephemeral=True)
 
     # Clear the guild's queue
     guild_id_str = str(interaction.guild_id)
@@ -96,14 +96,15 @@ async def stop(interaction: discord.Interaction):
     if voice_client.is_playing() or voice_client.is_paused():
         voice_client.stop()
 
+    # I'm not completely sure why, but it disconnects without this, if it's not commented the bot throws an exception
     # (Optional) Disconnect from the channel
-    await voice_client.disconnect()
+    # await voice_client.disconnect()
 
-    await interaction.response.send_message("Stopped playback and disconnected!")
+    await interaction.response.send_message("Ho fermato la riproduzione", ephemeral=True)
 
-
+# TODO: l'ephehemeral del comando play non funziona for some reason????
 @bot.tree.command(name="play", description="Riproduci una canzone o aggiungila alla coda.")
-@app_commands.describe(ricerca="Ricerca")
+@app_commands.describe(ricerca="Inserisci un URL o cerca la canzone")
 async def play(interaction: discord.Interaction, ricerca: str):
     await interaction.response.defer()
 
@@ -113,7 +114,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
         voice_channel = None
 
     if voice_channel is None:
-        await interaction.followup.send("You must be in a voice channel.")
+        await interaction.followup.send("Devi essere in un canale vocale!", ephemeral=True)
         return
 
     voice_client = interaction.guild.voice_client
@@ -135,7 +136,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
     tracks = results.get("entries", [])
 
     if tracks is None:
-        await interaction.followup.send("No results found.")
+        await interaction.followup.send("Nessun risultato trovato!", ephemeral=True)
         return
 
     first_track = tracks[0]
@@ -149,9 +150,9 @@ async def play(interaction: discord.Interaction, ricerca: str):
     SONG_QUEUES[guild_id].append((audio_url, title))
 
     if voice_client.is_playing() or voice_client.is_paused():
-        await interaction.followup.send(f"Added to queue: **{title}**")
+        await interaction.followup.send(f"Aggiunto alla coda: **{title}**", ephemeral=True)
     else:
-        await interaction.followup.send(f"Now playing: **{title}**")
+        await interaction.followup.send(f"Riproduco: **{title}**", ephemeral=True)
         await play_next_song(voice_client, guild_id, interaction.channel)
 
 
@@ -162,18 +163,17 @@ async def play_next_song(voice_client, guild_id, channel):
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn -c:a libopus -b:a 96k",
-            # Remove executable if FFmpeg is in PATH
         }
 
-        source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options, executable="bin\\ffmpeg\\ffmpeg.exe")
+        source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
 
         def after_play(error):
             if error:
-                print(f"Error playing {title}: {error}")
+                print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
 
         voice_client.play(source, after=after_play)
-        asyncio.create_task(channel.send(f"Now playing: **{title}**"))
+        # asyncio.create_task(channel.send(f"Now playing: **{title}**"))
     else:
         await voice_client.disconnect()
         SONG_QUEUES[guild_id] = deque()
