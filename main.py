@@ -102,11 +102,10 @@ async def stop(interaction: discord.Interaction):
 
     await interaction.response.send_message("Ho fermato la riproduzione", ephemeral=True)
 
-# TODO: l'ephehemeral del comando play non funziona for some reason????
 @bot.tree.command(name="play", description="Riproduci una canzone o aggiungila alla coda.")
 @app_commands.describe(ricerca="Inserisci un URL o cerca la canzone")
 async def play(interaction: discord.Interaction, ricerca: str):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     try:
         voice_channel = interaction.user.voice.channel
@@ -125,7 +124,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
         await voice_client.move_to(voice_channel)
 
     ydl_options = {
-        "format": "bestaudio[abr<=96]/bestaudio",
+        "format": "bestaudio[abr<=128]/bestaudio",
         "noplaylist": True,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
@@ -162,7 +161,7 @@ async def play_next_song(voice_client, guild_id, channel):
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": "-vn -c:a libopus -b:a 96k",
+            "options": "-vn -c:a libopus -b:a 128k",
         }
 
         source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
