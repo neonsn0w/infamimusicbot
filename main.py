@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from collections import deque
 import asyncio
 
+import string_functions as sf
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -16,24 +18,32 @@ intents.message_content = True
 # Song queues dict (a queue for each server!)
 SONG_QUEUES = {}
 
+
 async def search_ytdlp_async(query, ydl_opts):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: _extract(query, ydl_opts))
+
 
 def _extract(query, ydl_opts):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         return ydl.extract_info(query, download=False)
 
+
 bot = commands.Bot(command_prefix='!', intents=intents)
+
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f'{bot.user} has connected to Discord!')
 
+
 @bot.tree.command(name="konami", description="You forgot the Konami Code, didnt you?")
 async def konami(interaction: discord.Interaction):
-    await interaction.response.send_message("Konami Code: :arrow_up: :arrow_up: :arrow_down: :arrow_down: :arrow_left: :arrow_right: :arrow_left: :arrow_right: :regional_indicator_b: :regional_indicator_a:", ephemeral=True)
+    await interaction.response.send_message(
+        "Konami Code: :arrow_up: :arrow_up: :arrow_down: :arrow_down: :arrow_left: :arrow_right: :arrow_left: :arrow_right: :regional_indicator_b: :regional_indicator_a:",
+        ephemeral=True)
+
 
 @bot.tree.command(name="skip", description="Salta la canzone in riproduzione")
 async def skip(interaction: discord.Interaction):
@@ -79,6 +89,19 @@ async def resume(interaction: discord.Interaction):
     await interaction.response.send_message("Riprendo la riproduzione", ephemeral=True)
 
 
+@bot.tree.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
+async def nowplaying(interaction: discord.Interaction):
+    if interaction.guild.voice_client is None:
+        return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
+
+    if len(SONG_QUEUES) == 0:
+        return await interaction.response.send_message("Non sto riproducendo nulla! case 2", ephemeral=True)
+
+    if len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
+        return await interaction.response.send_message("Non sto riproducendo nulla! case 3", ephemeral=True)
+
+    await interaction.response.send_message("Sto riproducendo: " + SONG_QUEUES[str(interaction.guild_id)][0][1], ephemeral=True)
+
 @bot.tree.command(name="stop", description="Ferma la riproduzione.")
 async def stop(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
@@ -101,6 +124,7 @@ async def stop(interaction: discord.Interaction):
     # await voice_client.disconnect()
 
     await interaction.response.send_message("Ho fermato la riproduzione", ephemeral=True)
+
 
 @bot.tree.command(name="play", description="Riproduci una canzone o aggiungila alla coda.")
 @app_commands.describe(ricerca="Inserisci un URL o cerca la canzone")
@@ -130,17 +154,26 @@ async def play(interaction: discord.Interaction, ricerca: str):
         "youtube_include_hls_manifest": False,
     }
 
-    query = "ytsearch1: " + ricerca
-    results = await search_ytdlp_async(query, ydl_options)
-    tracks = results.get("entries", [])
+    if ricerca.startswith("https://youtube.com/") or ricerca.startswith("https://youtu.be/") or ricerca.startswith(
+            "https://music.youtube.com/"):
+        url = sf.get_video_url(sf.get_video_id(ricerca))
+        results = await search_ytdlp_async(url, ydl_options)
+        audio_url = results["url"]
+        title = results.get("title", "Untitled")
 
-    if tracks is None:
-        await interaction.followup.send("Nessun risultato trovato!", ephemeral=True)
-        return
+    else:
+        query = "ytsearch1: " + ricerca
+        results = await search_ytdlp_async(query, ydl_options)
+        tracks = results.get("entries", [])
 
-    first_track = tracks[0]
-    audio_url = first_track["url"]
-    title = first_track.get("title", "Untitled")
+        if tracks is None:
+            await interaction.followup.send("Nessun risultato trovato!", ephemeral=True)
+            return
+
+        first_track = tracks[0]
+        audio_url = first_track["url"]
+        print("THE AUDIO URL" + audio_url)
+        title = first_track.get("title", "Untitled")
 
     guild_id = str(interaction.guild_id)
     if SONG_QUEUES.get(guild_id) is None:
@@ -157,7 +190,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
 
 async def play_next_song(voice_client, guild_id, channel):
     if SONG_QUEUES[guild_id]:
-        audio_url, title = SONG_QUEUES[guild_id].popleft()
+        audio_url, title = SONG_QUEUES[guild_id][0]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -169,6 +202,10 @@ async def play_next_song(voice_client, guild_id, channel):
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
+
+            if len(SONG_QUEUES[guild_id]) > 0:
+                SONG_QUEUES[guild_id].popleft()
+
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
 
         voice_client.play(source, after=after_play)
