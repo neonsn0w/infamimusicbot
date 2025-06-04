@@ -91,16 +91,23 @@ async def resume(interaction: discord.Interaction):
 
 @bot.tree.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
 async def nowplaying(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None:
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    if len(SONG_QUEUES) == 0:
-        return await interaction.response.send_message("Non sto riproducendo nulla! case 2", ephemeral=True)
+    await interaction.response.send_message(f"Sto riproducendo:**{SONG_QUEUES[str(interaction.guild_id)][0][1]}**",
+                                            ephemeral=True)
 
-    if len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
-        return await interaction.response.send_message("Non sto riproducendo nulla! case 3", ephemeral=True)
+@bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
+async def queue(interaction: discord.Interaction):
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
+        return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    await interaction.response.send_message("Sto riproducendo: " + SONG_QUEUES[str(interaction.guild_id)][0][1], ephemeral=True)
+    queue_msg : str = "Ecco la coda:\n\n"
+
+    for song in SONG_QUEUES[str(interaction.guild_id)]:
+        queue_msg += f"- **{song[1]}**\n"
+
+    await interaction.response.send_message(queue_msg, ephemeral=True)
 
 @bot.tree.command(name="stop", description="Ferma la riproduzione.")
 async def stop(interaction: discord.Interaction):
