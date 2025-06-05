@@ -44,6 +44,12 @@ async def konami(interaction: discord.Interaction):
         "Konami Code: :arrow_up: :arrow_up: :arrow_down: :arrow_down: :arrow_left: :arrow_right: :arrow_left: :arrow_right: :regional_indicator_b: :regional_indicator_a:",
         ephemeral=True)
 
+@bot.tree.command(name="dementia", description="i forgor.")
+async def dementia(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "https://cdn.discordapp.com/attachments/484399910280757250/1380274678379184239/dementia.mp4?ex=68434877&is=6841f6f7&hm=79d3325914cac39de0aca7c575fc44edc8581f482c88855133169bb5c2c2397b&",
+        ephemeral=True)
+
 
 @bot.tree.command(name="skip", description="Salta la canzone in riproduzione")
 async def skip(interaction: discord.Interaction):
