@@ -44,6 +44,7 @@ async def konami(interaction: discord.Interaction):
         "Konami Code: :arrow_up: :arrow_up: :arrow_down: :arrow_down: :arrow_left: :arrow_right: :arrow_left: :arrow_right: :regional_indicator_b: :regional_indicator_a:",
         ephemeral=True)
 
+
 @bot.tree.command(name="dementia", description="i forgor.")
 async def dementia(interaction: discord.Interaction):
     await interaction.response.send_message(
@@ -97,23 +98,27 @@ async def resume(interaction: discord.Interaction):
 
 @bot.tree.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
 async def nowplaying(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
+            SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     await interaction.response.send_message(f"Sto riproducendo:**{SONG_QUEUES[str(interaction.guild_id)][0][1]}**",
                                             ephemeral=True)
 
+
 @bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
 async def queue(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
+            SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    queue_msg : str = "Ecco la coda:\n\n"
+    queue_msg: str = "Ecco la coda:\n\n"
 
     for song in SONG_QUEUES[str(interaction.guild_id)]:
         queue_msg += f"- **{song[1]}**\n"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
+
 
 @bot.tree.command(name="stop", description="Ferma la riproduzione.")
 async def stop(interaction: discord.Interaction):
@@ -168,7 +173,8 @@ async def play(interaction: discord.Interaction, ricerca: str):
     }
 
     if ricerca.startswith("https://youtube.com/") or ricerca.startswith("https://youtu.be/") or ricerca.startswith(
-            "https://music.youtube.com/"):
+            "https://music.youtube.com/") or ricerca.startswith("https://www.youtu.be/") or ricerca.startswith(
+        "https://www.youtube.com/"):
         url = sf.get_video_url(sf.get_video_id(ricerca))
         results = await search_ytdlp_async(url, ydl_options)
         audio_url = results["url"]
