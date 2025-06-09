@@ -166,7 +166,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
         await voice_client.move_to(voice_channel)
 
     ydl_options = {
-        "format": "bestaudio[abr<=128]/bestaudio",
+        "format": "bestaudio",
         "noplaylist": True,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
