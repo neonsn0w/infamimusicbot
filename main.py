@@ -168,9 +168,6 @@ async def play(interaction: discord.Interaction, ricerca: str):
     ydl_options = {
         "format": "bestaudio",
         "noplaylist": True,
-        "youtube_include_dash_manifest": False,
-        "youtube_include_hls_manifest": False,
-        "format_sort": ["abr", "asr"], # this (somehow) serves as a fallback in case there are no formats that indicate the abr
     }
 
     if ricerca.startswith("https://youtube.com/") or ricerca.startswith("https://youtu.be/") or ricerca.startswith(
