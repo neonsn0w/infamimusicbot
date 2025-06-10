@@ -102,7 +102,7 @@ async def nowplaying(interaction: discord.Interaction):
             SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    await interaction.response.send_message(f"Sto riproducendo:**{SONG_QUEUES[str(interaction.guild_id)][0][1]}**",
+    await interaction.response.send_message(f"Sto riproducendo: **{SONG_QUEUES[str(interaction.guild_id)][0][1]}**",
                                             ephemeral=True)
 
 
