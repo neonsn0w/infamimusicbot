@@ -102,7 +102,7 @@ async def nowplaying(interaction: discord.Interaction):
             SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    await interaction.response.send_message(f"Sto riproducendo: **{SONG_QUEUES[str(interaction.guild_id)][0][1]}**",
+    await interaction.response.send_message(f"Sto riproducendo: **[{SONG_QUEUES[str(interaction.guild_id)][0][1]}]({SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
                                             ephemeral=True)
 
 
@@ -115,7 +115,7 @@ async def queue(interaction: discord.Interaction):
     queue_msg: str = "Ecco la coda:\n\n"
 
     for song in SONG_QUEUES[str(interaction.guild_id)]:
-        queue_msg += f"- **{song[1]}**\n"
+        queue_msg += f"- **[{song[1]}](<{song[2]}>)**\n"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
 
@@ -179,35 +179,36 @@ async def play(interaction: discord.Interaction, ricerca: str):
         title = results.get("title", "Untitled")
 
     else:
-        query = "ytsearch1: " + ricerca
+        query = f"ytsearch1:{ricerca}"
         results = await search_ytdlp_async(query, ydl_options)
-        tracks = results.get("entries", [])
 
-        if tracks is None:
-            await interaction.followup.send("Nessun risultato trovato!", ephemeral=True)
-            return
+        if not results or 'entries' not in results or not results['entries']:
+            return None, None
 
-        first_track = tracks[0]
-        audio_url = first_track["url"]
-        print("THE AUDIO URL" + audio_url)
-        title = first_track.get("title", "Untitled")
+        first_entry = results['entries'][0]
+
+        url = sf.get_video_url(first_entry['id'])
+        video_info = await search_ytdlp_async(url, ydl_options)
+
+        audio_url = video_info['url']
+        title = first_entry.get('title', video_info.get('title', 'Untitled'))
 
     guild_id = str(interaction.guild_id)
     if SONG_QUEUES.get(guild_id) is None:
         SONG_QUEUES[guild_id] = deque()
 
-    SONG_QUEUES[guild_id].append((audio_url, title))
+    SONG_QUEUES[guild_id].append((audio_url, title, url))
 
     if voice_client.is_playing() or voice_client.is_paused():
-        await interaction.followup.send(f"Aggiunto alla coda: **{title}**", ephemeral=True)
+        await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
     else:
-        await interaction.followup.send(f"Riproduco: **{title}**", ephemeral=True)
+        await interaction.followup.send(f"Riproduco: **[{title}]({url})**", ephemeral=True)
         await play_next_song(voice_client, guild_id, interaction.channel)
 
 
 async def play_next_song(voice_client, guild_id, channel):
     if SONG_QUEUES[guild_id]:
-        audio_url, title = SONG_QUEUES[guild_id][0]
+        audio_url, title, url = SONG_QUEUES[guild_id][0]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
