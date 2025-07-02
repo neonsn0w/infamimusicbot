@@ -78,7 +78,7 @@ async def pause(interaction: discord.Interaction):
     # Check if something is actually playing
     if not voice_client.is_playing():
         return await interaction.followup.send("Non sto riproducendo nulla!", ephemeral=True)
-    
+
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
@@ -98,7 +98,7 @@ async def resume(interaction: discord.Interaction):
     # Check if it's actually paused
     if not voice_client.is_paused():
         return await interaction.followup.send("La riproduzione non è in pausa!", ephemeral=True)
-    
+
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
@@ -109,14 +109,13 @@ async def resume(interaction: discord.Interaction):
 
 @bot.tree.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
 async def nowplaying(interaction: discord.Interaction):
-
-
     if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
             SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
-    await interaction.response.send_message(f"Sto riproducendo: **[{SONG_QUEUES[str(interaction.guild_id)][0][1]}]({SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
-                                            ephemeral=True)
+    await interaction.response.send_message(
+        f"Sto riproducendo: **[{SONG_QUEUES[str(interaction.guild_id)][0][1]}]({SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
+        ephemeral=True)
 
 
 @bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
@@ -128,9 +127,10 @@ async def queue(interaction: discord.Interaction):
     queue_msg: str = "Ecco la coda:\n\n"
 
     for i, song in enumerate(SONG_QUEUES[str(interaction.guild_id)]):
-        queue_msg += f"{str(i+1)}. **[{song[1]}](<{song[2]}>)**\n"
+        queue_msg += f"{str(i + 1)}. **[{song[1]}](<{song[2]}>)**\n"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
+
 
 @bot.tree.command(name="remove", description="Rimuovi una canzone")
 async def remove(interaction: discord.Interaction, indice: int):
@@ -138,18 +138,18 @@ async def remove(interaction: discord.Interaction, indice: int):
     await interaction.response.defer(ephemeral=True)
     if len(SONG_QUEUES) == 0:
         return await interaction.followup.send("Non sto riproducendo nulla!", ephemeral=True)
-    elif indice-1 > len(SONG_QUEUES):
+    elif indice - 1 > len(SONG_QUEUES):
         return await interaction.followup.send("Questa canzone non esiste!", ephemeral=True)
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-    
+
     if indice <= 1:
         return await interaction.followup.send("Inserire un indice maggiore di 1", ephemeral=True)
 
     else:
-        nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice-1][1]
-        SONG_QUEUES[str(interaction.guild_id)].remove(SONG_QUEUES[str(interaction.guild_id)][indice-1])
+        nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice - 1][1]
+        SONG_QUEUES[str(interaction.guild_id)].remove(SONG_QUEUES[str(interaction.guild_id)][indice - 1])
         return await interaction.followup.send(f"{nomecanzone} è stata rimossa", ephemeral=True)
 
 
@@ -161,15 +161,9 @@ async def stop(interaction: discord.Interaction):
     # Check if the bot is in a voice channel
     if not voice_client or not voice_client.is_connected():
         return await interaction.followup.send("Non sono in un canale vocale!", ephemeral=True)
-    
-    try:
-        voice_channel = interaction.user.voice.channel
-    except AttributeError:
-        voice_channel = None
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-
 
     # Clear the guild's queue
     guild_id_str = str(interaction.guild_id)
