@@ -145,7 +145,7 @@ async def remove(interaction: discord.Interaction, indice: int):
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
     
     if indice <= 1:
-        return await interaction.followup.send("Non sei graditə né allo stato né alla chiesa", ephemeral=True)
+        return await interaction.followup.send("Inserire un indice maggiore di 1", ephemeral=True)
 
     else:
         nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice-1][1]
