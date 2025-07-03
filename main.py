@@ -293,8 +293,8 @@ async def play_next_song(voice_client, guild_id, channel):
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
-            
-            SONG_QUEUES[guild_id].popleft()
+            if len(SONG_QUEUES[guild_id]) > 0:
+                SONG_QUEUES[guild_id].popleft()
 
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
 
