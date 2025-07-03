@@ -6,6 +6,7 @@ from discord import app_commands
 from dotenv import load_dotenv
 from collections import deque
 import asyncio
+import random
 
 import string_functions as sf
 
@@ -17,6 +18,7 @@ intents.message_content = True
 
 # Song queues dict (a queue for each server!)
 SONG_QUEUES = {}
+SHUFFLED_QUEUES = []
 
 
 async def search_ytdlp_async(query, ydl_opts):
@@ -120,14 +122,18 @@ async def nowplaying(interaction: discord.Interaction):
 
 @bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
 async def queue(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
-            SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     queue_msg: str = "Ecco la coda:\n\n"
 
     for i, song in enumerate(SONG_QUEUES[str(interaction.guild_id)]):
-        queue_msg += f"{str(i + 1)}. **[{song[1]}](<{song[2]}>)**\n"
+        if i == 0:
+            queue_msg += f"**IN RIPRODUZIONE: [{song[1]}](<{song[2]}>)**\n"
+        else:
+            queue_msg += f"{str(i)}. **[{song[1]}](<{song[2]}>)**\n"
+    if str(interaction.guild_id) in SHUFFLED_QUEUES:
+        queue_msg += "- 🔀 IL QUEUE È IN SHUFFLE 🔀"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
 
@@ -138,17 +144,18 @@ async def remove(interaction: discord.Interaction, indice: int):
     await interaction.response.defer(ephemeral=True)
     if len(SONG_QUEUES) == 0:
         return await interaction.followup.send("Non sto riproducendo nulla!", ephemeral=True)
-    elif indice - 1 > len(SONG_QUEUES):
+    elif indice > len(SONG_QUEUES):
         return await interaction.followup.send("Questa canzone non esiste!", ephemeral=True)
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
-    if indice <= 1:
-        return await interaction.followup.send("Inserire un indice maggiore di 1", ephemeral=True)
+    if indice <= 0:
+        await interaction.followup.send("https://tenor.com/view/miku-angry-meme-goku-angry-miku-meme-meme-hatsune-miku-gif-5683637212704483663", ephemeral=True)
+        return await interaction.followup.send("Inserire un indice maggiore di 0", ephemeral=True)
 
     else:
-        nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice - 1][1]
+        nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice][1]
         SONG_QUEUES[str(interaction.guild_id)].remove(SONG_QUEUES[str(interaction.guild_id)][indice - 1])
         return await interaction.followup.send(f"{nomecanzone} è stata rimossa", ephemeral=True)
 
@@ -179,6 +186,26 @@ async def stop(interaction: discord.Interaction):
     # await voice_client.disconnect()
 
     await interaction.followup.send("Ho fermato la riproduzione", ephemeral=True)
+
+@bot.tree.command(name="shuffle", description="Attiva/disattiva lo shuffle")
+async def stop(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    await interaction.response.defer(ephemeral=True)
+
+    # Check if the bot is in a voice channel
+    if not voice_client or not voice_client.is_connected():
+        return await interaction.followup.send("Non sono in un canale vocale!", ephemeral=True)
+
+    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
+        return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
+
+    if str(interaction.guild_id) not in SHUFFLED_QUEUES:
+        SHUFFLED_QUEUES.append(str(interaction.guild_id))
+        await interaction.followup.send("Shuffle attivato!", ephemeral=True)
+
+    elif str(interaction.guild_id) in SHUFFLED_QUEUES:
+        SHUFFLED_QUEUES.remove(str(interaction.guild_id))
+        await interaction.followup.send("Shuffle disattivato!", ephemeral=True)
 
 
 @bot.tree.command(name="play", description="Riproduci una canzone o aggiungila alla coda.")
@@ -245,21 +272,29 @@ async def play(interaction: discord.Interaction, ricerca: str):
 
 async def play_next_song(voice_client, guild_id, channel):
     if SONG_QUEUES[guild_id]:
-        audio_url, title, url = SONG_QUEUES[guild_id][0]
+        if len(SONG_QUEUES[guild_id]) > 2:
+            randsong = random.randint(1, len(SONG_QUEUES[guild_id])-1)
+        if guild_id not in SHUFFLED_QUEUES:
+            audio_url, title, url = SONG_QUEUES[guild_id][0]
+        elif guild_id in SHUFFLED_QUEUES:
+            audio_url, title, url = SONG_QUEUES[guild_id][randsong]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn -c:a libopus -b:a 128k",
         }
 
+        if len(SONG_QUEUES[guild_id]) > 2 and guild_id in SHUFFLED_QUEUES:
+            SONG_QUEUES[guild_id].insert(0, SONG_QUEUES[guild_id][randsong])
+            del SONG_QUEUES[guild_id][randsong+1]
+
         source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
 
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
-
-            if len(SONG_QUEUES[guild_id]) > 0:
-                SONG_QUEUES[guild_id].popleft()
+            
+            SONG_QUEUES[guild_id].popleft()
 
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
 
