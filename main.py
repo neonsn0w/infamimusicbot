@@ -188,7 +188,7 @@ async def stop(interaction: discord.Interaction):
     await interaction.followup.send("Ho fermato la riproduzione", ephemeral=True)
 
 @bot.tree.command(name="shuffle", description="Attiva/disattiva lo shuffle")
-async def stop(interaction: discord.Interaction):
+async def shuffle(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
     await interaction.response.defer(ephemeral=True)
 
