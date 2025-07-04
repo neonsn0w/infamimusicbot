@@ -19,6 +19,7 @@ intents.message_content = True
 # Song queues dict (a queue for each server!)
 SONG_QUEUES = {}
 SHUFFLED_QUEUES = []
+LOOPED_QUEUES = []
 
 
 async def search_ytdlp_async(query, ydl_opts):
@@ -198,6 +199,9 @@ async def shuffle(interaction: discord.Interaction):
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
+    
+    if str(interaction.guild_id) in LOOPED_QUEUES:
+        return await interaction.followup.send("Shuffle e loop non sono compatibili!")
 
     if str(interaction.guild_id) not in SHUFFLED_QUEUES:
         SHUFFLED_QUEUES.append(str(interaction.guild_id))
@@ -206,6 +210,29 @@ async def shuffle(interaction: discord.Interaction):
     elif str(interaction.guild_id) in SHUFFLED_QUEUES:
         SHUFFLED_QUEUES.remove(str(interaction.guild_id))
         await interaction.followup.send("Shuffle disattivato!", ephemeral=True)
+
+@bot.tree.command(name="loop", description="Attiva/Disattiva il loop la canzone attuale")
+async def loop(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    await interaction.response.defer(ephemeral=True)
+
+    # Check if the bot is in a voice channel
+    if not voice_client or not voice_client.is_connected():
+        return await interaction.followup.send("Non sono in un canale vocale!", ephemeral=True)
+
+    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
+        return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
+    
+    if str(interaction.guild_id) in SHUFFLED_QUEUES:
+        return await interaction.followup.send("Shuffle e loop non sono compatibili!")
+    
+    if str(interaction.guild_id) in LOOPED_QUEUES:
+        LOOPED_QUEUES.remove(str(interaction.guild_id))
+        return await interaction.followup.send("Disattivato il loop")
+
+    if str(interaction.guild_id) not in LOOPED_QUEUES:
+        LOOPED_QUEUES.append(str(interaction.guild_id))
+        return await interaction.followup.send("Attivato il loop")
 
 
 @bot.tree.command(name="play", description="Riproduci una canzone o aggiungila alla coda.")
@@ -293,7 +320,8 @@ async def play_next_song(voice_client, guild_id, channel):
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
-            if len(SONG_QUEUES[guild_id]) > 0:
+            
+            if guild_id not in LOOPED_QUEUES:
                 SONG_QUEUES[guild_id].popleft()
 
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
