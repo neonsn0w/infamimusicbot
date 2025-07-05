@@ -59,7 +59,7 @@ async def dementia(interaction: discord.Interaction):
 async def skip(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     voice_client = interaction.guild.voice_client
-    if not interaction.user.voice or inteMTM4Nzg5MDkzMTExMzY2MDQ3Nw.G5KF5G.bxMGKvPfi2O7yBuUI_hfXgYI4tnnkPnXKIaXXsraction.user.voice.channel.id != voice_client.channel.id:
+    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
     if interaction.guild.voice_client and (
