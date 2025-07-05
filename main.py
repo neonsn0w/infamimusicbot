@@ -59,7 +59,7 @@ async def dementia(interaction: discord.Interaction):
 async def skip(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     voice_client = interaction.guild.voice_client
-    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
+    if not interaction.user.voice or inteMTM4Nzg5MDkzMTExMzY2MDQ3Nw.G5KF5G.bxMGKvPfi2O7yBuUI_hfXgYI4tnnkPnXKIaXXsraction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
     if interaction.guild.voice_client and (
@@ -135,6 +135,8 @@ async def queue(interaction: discord.Interaction):
             queue_msg += f"{str(i)}. **[{song[1]}](<{song[2]}>)**\n"
     if str(interaction.guild_id) in SHUFFLED_QUEUES:
         queue_msg += "- 🔀 IL QUEUE È IN SHUFFLE 🔀"
+    if str(interaction.guild_id) in LOOPED_QUEUES:
+        queue_msg += "- 🔁 IL QUEUE È IN LOOP 🔁"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
 
@@ -177,14 +179,20 @@ async def stop(interaction: discord.Interaction):
     guild_id_str = str(interaction.guild_id)
     if guild_id_str in SONG_QUEUES:
         SONG_QUEUES[guild_id_str].clear()
+    
+    # Disables shuffle and loop after bot is stopped
+
+    if guild_id_str in SHUFFLED_QUEUES:
+        SHUFFLED_QUEUES.remove(guild_id_str)
+
+    if guild_id_str in LOOPED_QUEUES:
+        LOOPED_QUEUES.remove(guild_id_str)
 
     # If something is playing or paused, stop it
     if voice_client.is_playing() or voice_client.is_paused():
         voice_client.stop()
 
-    # I'm not completely sure why, but it disconnects without this, if it's not commented the bot throws an exception
-    # (Optional) Disconnect from the channel
-    # await voice_client.disconnect()
+    await voice_client.disconnect()
 
     await interaction.followup.send("Ho fermato la riproduzione", ephemeral=True)
 
@@ -321,7 +329,7 @@ async def play_next_song(voice_client, guild_id, channel):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
             
-            if guild_id not in LOOPED_QUEUES:
+            if guild_id not in LOOPED_QUEUES and len(SONG_QUEUES[guild_id]) > 0:
                 SONG_QUEUES[guild_id].popleft()
 
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
