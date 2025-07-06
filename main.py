@@ -123,7 +123,8 @@ async def nowplaying(interaction: discord.Interaction):
 
 @bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
 async def queue(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
+            SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     queue_msg: str = "Ecco la coda:\n\n"
@@ -134,9 +135,9 @@ async def queue(interaction: discord.Interaction):
         else:
             queue_msg += f"{str(i)}. **[{song[1]}](<{song[2]}>)**\n"
     if str(interaction.guild_id) in SHUFFLED_QUEUES:
-        queue_msg += "- 🔀 IL QUEUE È IN SHUFFLE 🔀"
+        queue_msg += "\n🔀 QUEUE IN SHUFFLE 🔀"
     if str(interaction.guild_id) in LOOPED_QUEUES:
-        queue_msg += "- 🔁 IL QUEUE È IN LOOP 🔁"
+        queue_msg += "\n🔁 QUEUE IN LOOP 🔁"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
 
@@ -154,8 +155,11 @@ async def remove(interaction: discord.Interaction, indice: int):
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
     if indice <= 0:
-        await interaction.followup.send("https://tenor.com/view/miku-angry-meme-goku-angry-miku-meme-meme-hatsune-miku-gif-5683637212704483663", ephemeral=True)
-        return await interaction.followup.send("Inserire un indice maggiore di 0", ephemeral=True)
+        # you know what you did...
+        return await interaction.followup.send(
+            "https://tenor.com/view/miku-angry-meme-goku-angry-miku-meme-meme-hatsune-miku-gif-5683637212704483663",
+            ephemeral=True)
+        # return await interaction.followup.send("Inserire un indice maggiore di 0", ephemeral=True)
 
     else:
         nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice][1]
@@ -179,7 +183,7 @@ async def stop(interaction: discord.Interaction):
     guild_id_str = str(interaction.guild_id)
     if guild_id_str in SONG_QUEUES:
         SONG_QUEUES[guild_id_str].clear()
-    
+
     # Disables shuffle and loop after bot is stopped
 
     if guild_id_str in SHUFFLED_QUEUES:
@@ -196,6 +200,7 @@ async def stop(interaction: discord.Interaction):
 
     await interaction.followup.send("Ho fermato la riproduzione", ephemeral=True)
 
+
 @bot.tree.command(name="shuffle", description="Attiva/disattiva lo shuffle")
 async def shuffle(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
@@ -207,7 +212,7 @@ async def shuffle(interaction: discord.Interaction):
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-    
+
     if str(interaction.guild_id) in LOOPED_QUEUES:
         return await interaction.followup.send("Shuffle e loop non sono compatibili!")
 
@@ -218,6 +223,7 @@ async def shuffle(interaction: discord.Interaction):
     elif str(interaction.guild_id) in SHUFFLED_QUEUES:
         SHUFFLED_QUEUES.remove(str(interaction.guild_id))
         await interaction.followup.send("Shuffle disattivato!", ephemeral=True)
+
 
 @bot.tree.command(name="loop", description="Attiva/Disattiva il loop la canzone attuale")
 async def loop(interaction: discord.Interaction):
@@ -230,10 +236,10 @@ async def loop(interaction: discord.Interaction):
 
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-    
+
     if str(interaction.guild_id) in SHUFFLED_QUEUES:
         return await interaction.followup.send("Shuffle e loop non sono compatibili!")
-    
+
     if str(interaction.guild_id) in LOOPED_QUEUES:
         LOOPED_QUEUES.remove(str(interaction.guild_id))
         return await interaction.followup.send("Disattivato il loop")
@@ -308,7 +314,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
 async def play_next_song(voice_client, guild_id, channel):
     if SONG_QUEUES[guild_id]:
         if len(SONG_QUEUES[guild_id]) > 2:
-            randsong = random.randint(1, len(SONG_QUEUES[guild_id])-1)
+            randsong = random.randint(1, len(SONG_QUEUES[guild_id]) - 1)
         if guild_id not in SHUFFLED_QUEUES:
             audio_url, title, url = SONG_QUEUES[guild_id][0]
         elif guild_id in SHUFFLED_QUEUES:
@@ -321,14 +327,14 @@ async def play_next_song(voice_client, guild_id, channel):
 
         if len(SONG_QUEUES[guild_id]) > 2 and guild_id in SHUFFLED_QUEUES:
             SONG_QUEUES[guild_id].insert(0, SONG_QUEUES[guild_id][randsong])
-            del SONG_QUEUES[guild_id][randsong+1]
+            del SONG_QUEUES[guild_id][randsong + 1]
 
         source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
 
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
-            
+
             if guild_id not in LOOPED_QUEUES and len(SONG_QUEUES[guild_id]) > 0:
                 SONG_QUEUES[guild_id].popleft()
 
