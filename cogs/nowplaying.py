@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils import shared as sh
+from utils.song import Song
 
 
 class Nowplaying(commands.Cog):
@@ -15,13 +16,15 @@ class Nowplaying(commands.Cog):
 
     @app_commands.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
     async def nowplaying(self, interaction: discord.Interaction):
-        if interaction.guild.voice_client is None or len(sh.SONG_QUEUES) == 0 or len(
-                sh.SONG_QUEUES[str(interaction.guild_id)]) == 0:
+        guild_id = str(interaction.guild_id)
+
+        if interaction.guild.voice_client is None or guild_id not in sh.SONG_QUEUES or not sh.SONG_QUEUES[guild_id]:
             return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
+        song = sh.SONG_QUEUES[guild_id][0]
         await interaction.response.send_message(
-            f"Sto riproducendo: **[{sh.SONG_QUEUES[str(interaction.guild_id)][0][1]}]({sh.SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
-            ephemeral=True)
+            f"Sto riproducendo: **[{song.title}]({song.url})**", ephemeral=True
+    )
 
 
 async def setup(bot):
