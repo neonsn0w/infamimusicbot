@@ -104,45 +104,39 @@ async def play(interaction: discord.Interaction, ricerca: str):
 
 
 async def play_next_song(voice_client, guild_id, channel):
-    queue = sh.SONG_QUEUES.get(guild_id)
+    if sh.SONG_QUEUES[guild_id]:
+        if len(sh.SONG_QUEUES[guild_id]) > 2:
+            randsong = random.randint(1, len(sh.SONG_QUEUES[guild_id]) - 1)
+        if guild_id not in sh.SHUFFLED_QUEUES:
+            audio_url, title, url = sh.SONG_QUEUES[guild_id][0]
+        elif guild_id in sh.SHUFFLED_QUEUES:
+            audio_url, title, url = sh.SONG_QUEUES[guild_id][randsong]
 
-    if not queue:
+        ffmpeg_options = {
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "options": "-vn -c:a libopus -b:a 128k",
+        }
+
+        if len(sh.SONG_QUEUES[guild_id]) > 2 and guild_id in sh.SHUFFLED_QUEUES:
+            sh.SONG_QUEUES[guild_id].insert(0, sh.SONG_QUEUES[guild_id][randsong])
+            del sh.SONG_QUEUES[guild_id][randsong + 1]
+
+        source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
+
+        def after_play(error):
+            if error:
+                print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
+
+            if guild_id not in sh.LOOPED_QUEUES and len(sh.SONG_QUEUES[guild_id]) > 0:
+                sh.SONG_QUEUES[guild_id].popleft()
+
+            asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
+
+        voice_client.play(source, after=after_play)
+        # asyncio.create_task(channel.send(f"Now playing: **{title}**"))
+    else:
         await voice_client.disconnect()
         sh.SONG_QUEUES[guild_id] = deque()
-        return
-
-    # Select song
-    if guild_id in sh.SHUFFLED_QUEUES and len(queue) > 2:
-        randsong_index = random.randint(1, len(queue) - 1)
-        audio_url, title, url = queue[randsong_index]
-
-        # Move the song to the front
-        queue.insert(0, queue[randsong_index])
-        del queue[randsong_index + 1]
-    else:
-        audio_url, title, url = queue[0]
-
-    ffmpeg_options = {
-        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-        "options": "-vn -c:a libopus -b:a 128k",
-    }
-
-    source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
-
-    def after_play(error):
-        if error:
-            print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
-
-        if guild_id not in sh.LOOPED_QUEUES and len(queue) > 0:
-            queue.popleft()
-
-        asyncio.run_coroutine_threadsafe(
-            play_next_song(voice_client, guild_id, channel),
-            bot.loop
-        )
-
-    voice_client.play(source, after=after_play)
-    # await channel.send(f"Now playing: **{title}**")
 
 
 async def main():
