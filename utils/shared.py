@@ -1,6 +1,6 @@
 # from collections import deque
 
-# Song queues dict (a queue for each server!)
+# dict for number of server queues
 SONG_QUEUES = {}
 
 SHUFFLED_QUEUES = []
