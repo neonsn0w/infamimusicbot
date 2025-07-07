@@ -8,7 +8,8 @@ from collections import deque
 import asyncio
 import random
 
-import string_functions as sf
+from utils import string_functions as sf
+from utils import shared as sh
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -16,10 +17,11 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 
-# Song queues dict (a queue for each server!)
-SONG_QUEUES = {}
-SHUFFLED_QUEUES = []
-LOOPED_QUEUES = []
+
+async def load_extensions():
+    for filename in os.listdir("./cogs"):
+        if filename.endswith(".py"):
+            await bot.load_extension(f"cogs.{filename[:-3]}")
 
 
 async def search_ytdlp_async(query, ydl_opts):
@@ -39,35 +41,6 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     await bot.tree.sync()
     print(f'{bot.user} has connected to Discord!')
-
-
-@bot.tree.command(name="konami", description="You forgot the Konami Code, didnt you?")
-async def konami(interaction: discord.Interaction):
-    await interaction.response.send_message(
-        "Konami Code: :arrow_up: :arrow_up: :arrow_down: :arrow_down: :arrow_left: :arrow_right: :arrow_left: :arrow_right: :regional_indicator_b: :regional_indicator_a:",
-        ephemeral=True)
-
-
-@bot.tree.command(name="dementia", description="i forgor.")
-async def dementia(interaction: discord.Interaction):
-    await interaction.response.send_message(
-        "https://cdn.discordapp.com/attachments/484399910280757250/1380274678379184239/dementia.mp4?ex=68434877&is=6841f6f7&hm=79d3325914cac39de0aca7c575fc44edc8581f482c88855133169bb5c2c2397b&",
-        ephemeral=True)
-
-
-@bot.tree.command(name="skip", description="Salta la canzone in riproduzione")
-async def skip(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    voice_client = interaction.guild.voice_client
-    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
-        return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-
-    if interaction.guild.voice_client and (
-            interaction.guild.voice_client.is_playing() or interaction.guild.voice_client.is_paused()):
-        interaction.guild.voice_client.stop()
-        await interaction.followup.send("Canzone saltata.", ephemeral=True)
-    else:
-        await interaction.followup.send("Non sto riproducendo nulla!", ephemeral=True)
 
 
 @bot.tree.command(name="pause", description="Metti in pausa la riproduzione.")
@@ -112,59 +85,34 @@ async def resume(interaction: discord.Interaction):
 
 @bot.tree.command(name="nowplaying", description="Controlla che canzone è in riproduzione.")
 async def nowplaying(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
-            SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(sh.SONG_QUEUES) == 0 or len(
+            sh.SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     await interaction.response.send_message(
-        f"Sto riproducendo: **[{SONG_QUEUES[str(interaction.guild_id)][0][1]}]({SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
+        f"Sto riproducendo: **[{sh.SONG_QUEUES[str(interaction.guild_id)][0][1]}]({sh.SONG_QUEUES[str(interaction.guild_id)][0][2]})**",
         ephemeral=True)
 
 
 @bot.tree.command(name="queue", description="Visualizza la coda di riproduzione.")
 async def queue(interaction: discord.Interaction):
-    if interaction.guild.voice_client is None or len(SONG_QUEUES) == 0 or len(
-            SONG_QUEUES[str(interaction.guild_id)]) == 0:
+    if interaction.guild.voice_client is None or len(sh.SONG_QUEUES) == 0 or len(
+            sh.SONG_QUEUES[str(interaction.guild_id)]) == 0:
         return await interaction.response.send_message("Non sto riproducendo nulla!", ephemeral=True)
 
     queue_msg: str = "Ecco la coda:\n\n"
 
-    for i, song in enumerate(SONG_QUEUES[str(interaction.guild_id)]):
+    for i, song in enumerate(sh.SONG_QUEUES[str(interaction.guild_id)]):
         if i == 0:
             queue_msg += f"**IN RIPRODUZIONE: [{song[1]}](<{song[2]}>)**\n"
         else:
             queue_msg += f"{str(i)}. **[{song[1]}](<{song[2]}>)**\n"
-    if str(interaction.guild_id) in SHUFFLED_QUEUES:
+    if str(interaction.guild_id) in sh.SHUFFLED_QUEUES:
         queue_msg += "\n🔀 QUEUE IN SHUFFLE 🔀"
-    if str(interaction.guild_id) in LOOPED_QUEUES:
+    if str(interaction.guild_id) in sh.LOOPED_QUEUES:
         queue_msg += "\n🔁 QUEUE IN LOOP 🔁"
 
     await interaction.response.send_message(queue_msg, ephemeral=True)
-
-
-@bot.tree.command(name="remove", description="Rimuovi una canzone")
-async def remove(interaction: discord.Interaction, indice: int):
-    voice_client = interaction.guild.voice_client
-    await interaction.response.defer(ephemeral=True)
-    if len(SONG_QUEUES) == 0:
-        return await interaction.followup.send("Non sto riproducendo nulla!", ephemeral=True)
-    elif indice > len(SONG_QUEUES):
-        return await interaction.followup.send("Questa canzone non esiste!", ephemeral=True)
-
-    if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
-        return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
-
-    if indice <= 0:
-        # you know what you did...
-        return await interaction.followup.send(
-            "https://tenor.com/view/miku-angry-meme-goku-angry-miku-meme-meme-hatsune-miku-gif-5683637212704483663",
-            ephemeral=True)
-        # return await interaction.followup.send("Inserire un indice maggiore di 0", ephemeral=True)
-
-    else:
-        nomecanzone = SONG_QUEUES[str(interaction.guild_id)][indice][1]
-        SONG_QUEUES[str(interaction.guild_id)].remove(SONG_QUEUES[str(interaction.guild_id)][indice - 1])
-        return await interaction.followup.send(f"{nomecanzone} è stata rimossa", ephemeral=True)
 
 
 @bot.tree.command(name="stop", description="Ferma la riproduzione.")
@@ -181,16 +129,16 @@ async def stop(interaction: discord.Interaction):
 
     # Clear the guild's queue
     guild_id_str = str(interaction.guild_id)
-    if guild_id_str in SONG_QUEUES:
-        SONG_QUEUES[guild_id_str].clear()
+    if guild_id_str in sh.SONG_QUEUES:
+        sh.SONG_QUEUES[guild_id_str].clear()
 
     # Disables shuffle and loop after bot is stopped
 
-    if guild_id_str in SHUFFLED_QUEUES:
-        SHUFFLED_QUEUES.remove(guild_id_str)
+    if guild_id_str in sh.SHUFFLED_QUEUES:
+        sh.SHUFFLED_QUEUES.remove(guild_id_str)
 
-    if guild_id_str in LOOPED_QUEUES:
-        LOOPED_QUEUES.remove(guild_id_str)
+    if guild_id_str in sh.LOOPED_QUEUES:
+        sh.LOOPED_QUEUES.remove(guild_id_str)
 
     # If something is playing or paused, stop it
     if voice_client.is_playing() or voice_client.is_paused():
@@ -213,15 +161,15 @@ async def shuffle(interaction: discord.Interaction):
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
-    if str(interaction.guild_id) in LOOPED_QUEUES:
+    if str(interaction.guild_id) in sh.LOOPED_QUEUES:
         return await interaction.followup.send("Shuffle e loop non sono compatibili!")
 
-    if str(interaction.guild_id) not in SHUFFLED_QUEUES:
-        SHUFFLED_QUEUES.append(str(interaction.guild_id))
+    if str(interaction.guild_id) not in sh.SHUFFLED_QUEUES:
+        sh.SHUFFLED_QUEUES.append(str(interaction.guild_id))
         await interaction.followup.send("Shuffle attivato!", ephemeral=True)
 
-    elif str(interaction.guild_id) in SHUFFLED_QUEUES:
-        SHUFFLED_QUEUES.remove(str(interaction.guild_id))
+    elif str(interaction.guild_id) in sh.SHUFFLED_QUEUES:
+        sh.SHUFFLED_QUEUES.remove(str(interaction.guild_id))
         await interaction.followup.send("Shuffle disattivato!", ephemeral=True)
 
 
@@ -237,15 +185,15 @@ async def loop(interaction: discord.Interaction):
     if not interaction.user.voice or interaction.user.voice.channel.id != voice_client.channel.id:
         return await interaction.followup.send("Devi essere nel mio canale vocale!", ephemeral=True)
 
-    if str(interaction.guild_id) in SHUFFLED_QUEUES:
+    if str(interaction.guild_id) in sh.SHUFFLED_QUEUES:
         return await interaction.followup.send("Shuffle e loop non sono compatibili!")
 
-    if str(interaction.guild_id) in LOOPED_QUEUES:
-        LOOPED_QUEUES.remove(str(interaction.guild_id))
+    if str(interaction.guild_id) in sh.LOOPED_QUEUES:
+        sh.LOOPED_QUEUES.remove(str(interaction.guild_id))
         return await interaction.followup.send("Disattivato il loop")
 
-    if str(interaction.guild_id) not in LOOPED_QUEUES:
-        LOOPED_QUEUES.append(str(interaction.guild_id))
+    if str(interaction.guild_id) not in sh.LOOPED_QUEUES:
+        sh.LOOPED_QUEUES.append(str(interaction.guild_id))
         return await interaction.followup.send("Attivato il loop")
 
 
@@ -299,10 +247,10 @@ async def play(interaction: discord.Interaction, ricerca: str):
         title = first_entry.get('title', video_info.get('title', 'Untitled'))
 
     guild_id = str(interaction.guild_id)
-    if SONG_QUEUES.get(guild_id) is None:
-        SONG_QUEUES[guild_id] = deque()
+    if sh.SONG_QUEUES.get(guild_id) is None:
+        sh.SONG_QUEUES[guild_id] = deque()
 
-    SONG_QUEUES[guild_id].append((audio_url, title, url))
+    sh.SONG_QUEUES[guild_id].append((audio_url, title, url))
 
     if voice_client.is_playing() or voice_client.is_paused():
         await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
@@ -312,22 +260,22 @@ async def play(interaction: discord.Interaction, ricerca: str):
 
 
 async def play_next_song(voice_client, guild_id, channel):
-    if SONG_QUEUES[guild_id]:
-        if len(SONG_QUEUES[guild_id]) > 2:
-            randsong = random.randint(1, len(SONG_QUEUES[guild_id]) - 1)
-        if guild_id not in SHUFFLED_QUEUES:
-            audio_url, title, url = SONG_QUEUES[guild_id][0]
-        elif guild_id in SHUFFLED_QUEUES:
-            audio_url, title, url = SONG_QUEUES[guild_id][randsong]
+    if sh.SONG_QUEUES[guild_id]:
+        if len(sh.SONG_QUEUES[guild_id]) > 2:
+            randsong = random.randint(1, len(sh.SONG_QUEUES[guild_id]) - 1)
+        if guild_id not in sh.SHUFFLED_QUEUES:
+            audio_url, title, url = sh.SONG_QUEUES[guild_id][0]
+        elif guild_id in sh.SHUFFLED_QUEUES:
+            audio_url, title, url = sh.SONG_QUEUES[guild_id][randsong]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn -c:a libopus -b:a 128k",
         }
 
-        if len(SONG_QUEUES[guild_id]) > 2 and guild_id in SHUFFLED_QUEUES:
-            SONG_QUEUES[guild_id].insert(0, SONG_QUEUES[guild_id][randsong])
-            del SONG_QUEUES[guild_id][randsong + 1]
+        if len(sh.SONG_QUEUES[guild_id]) > 2 and guild_id in sh.SHUFFLED_QUEUES:
+            sh.SONG_QUEUES[guild_id].insert(0, sh.SONG_QUEUES[guild_id][randsong])
+            del sh.SONG_QUEUES[guild_id][randsong + 1]
 
         source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
 
@@ -335,8 +283,8 @@ async def play_next_song(voice_client, guild_id, channel):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
 
-            if guild_id not in LOOPED_QUEUES and len(SONG_QUEUES[guild_id]) > 0:
-                SONG_QUEUES[guild_id].popleft()
+            if guild_id not in sh.LOOPED_QUEUES and len(sh.SONG_QUEUES[guild_id]) > 0:
+                sh.SONG_QUEUES[guild_id].popleft()
 
             asyncio.run_coroutine_threadsafe(play_next_song(voice_client, guild_id, channel), bot.loop)
 
@@ -344,7 +292,13 @@ async def play_next_song(voice_client, guild_id, channel):
         # asyncio.create_task(channel.send(f"Now playing: **{title}**"))
     else:
         await voice_client.disconnect()
-        SONG_QUEUES[guild_id] = deque()
+        sh.SONG_QUEUES[guild_id] = deque()
 
 
-bot.run(TOKEN)
+async def main():
+    async with bot:
+        await load_extensions()
+        await bot.start(TOKEN)
+
+
+asyncio.run(main())
