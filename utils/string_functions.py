@@ -8,7 +8,7 @@ def get_video_id(url: str) -> str:
         return re.search(r'/shorts/(.{11})', url).group(1)
 
     match = re.search(r'[?&]v=([^&]{11})', url)
-    return match.group(1) if match else None
+    return match.group(1) if match else None # extract a video ID only if it's present in the URL; if not, it returns None
 
 
 def get_video_url(video_id: str) -> str:
