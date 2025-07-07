@@ -10,6 +10,7 @@ import random
 
 from utils import string_functions as sf
 from utils import shared as sh
+from utils.song import Song
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -94,7 +95,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
     if sh.SONG_QUEUES.get(guild_id) is None:
         sh.SONG_QUEUES[guild_id] = deque()
 
-    sh.SONG_QUEUES[guild_id].append((audio_url, title, url))
+    sh.SONG_QUEUES[guild_id].append(Song(audio_url, title, url))
 
     if voice_client.is_playing() or voice_client.is_paused():
         await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
@@ -108,9 +109,9 @@ async def play_next_song(voice_client, guild_id, channel):
         if len(sh.SONG_QUEUES[guild_id]) > 2:
             randsong = random.randint(1, len(sh.SONG_QUEUES[guild_id]) - 1)
         if guild_id not in sh.SHUFFLED_QUEUES:
-            audio_url, title, url = sh.SONG_QUEUES[guild_id][0]
+            song = sh.SONG_QUEUES[guild_id][0]
         elif guild_id in sh.SHUFFLED_QUEUES:
-            audio_url, title, url = sh.SONG_QUEUES[guild_id][randsong]
+            song = sh.SONG_QUEUES[guild_id][randsong]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -118,14 +119,13 @@ async def play_next_song(voice_client, guild_id, channel):
         }
 
         if len(sh.SONG_QUEUES[guild_id]) > 2 and guild_id in sh.SHUFFLED_QUEUES:
-            sh.SONG_QUEUES[guild_id].insert(0, sh.SONG_QUEUES[guild_id][randsong])
-            del sh.SONG_QUEUES[guild_id][randsong + 1]
+            sh.SONG_QUEUES[guild_id].appendleft(song)
 
-        source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
+        source = discord.FFmpegOpusAudio(song.audio_url, **ffmpeg_options)
 
         def after_play(error):
             if error:
-                print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
+                print(f"Whoops! Non sono riuscita a riprodurre {song.title}: {error}")
 
             if guild_id not in sh.LOOPED_QUEUES and len(sh.SONG_QUEUES[guild_id]) > 0:
                 sh.SONG_QUEUES[guild_id].popleft()

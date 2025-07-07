@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils import shared as sh
+from utils.song import Song
 
 
 class Queue(commands.Cog):
@@ -23,9 +24,9 @@ class Queue(commands.Cog):
 
         for i, song in enumerate(sh.SONG_QUEUES[str(interaction.guild_id)]):
             if i == 0:
-                queue_msg += f"**IN RIPRODUZIONE: [{song[1]}](<{song[2]}>)**\n"
+                queue_msg += f"**IN RIPRODUZIONE: [{song.title}](<{song.url}>)**\n"
             else:
-                queue_msg += f"{str(i)}. **[{song[1]}](<{song[2]}>)**\n"
+                queue_msg += f"{str(i)}. **[{song.title}](<{song.url}>)**\n"
         if str(interaction.guild_id) in sh.SHUFFLED_QUEUES:
             queue_msg += "\n🔀 QUEUE IN SHUFFLE 🔀"
         if str(interaction.guild_id) in sh.LOOPED_QUEUES:
