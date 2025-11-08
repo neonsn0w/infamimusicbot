@@ -2,11 +2,12 @@ import os
 import yt_dlp
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, http
 from dotenv import load_dotenv
 from collections import deque
 import asyncio
 import random
+import requests
 
 from utils import string_functions as sf
 from utils import shared as sh
@@ -48,7 +49,7 @@ async def on_ready():
 async def play(interaction: discord.Interaction, ricerca: str):
     await interaction.response.defer(ephemeral=True)
 
-    try:
+    try: 
         voice_channel = interaction.user.voice.channel
     except AttributeError:
         return await interaction.followup.send("Devi essere in un canale vocale!", ephemeral=True)
@@ -91,6 +92,7 @@ async def play(interaction: discord.Interaction, ricerca: str):
         title = first_entry.get('title', video_info.get('title', 'Untitled'))
 
     guild_id = str(interaction.guild_id)
+
     if sh.SONG_QUEUES.get(guild_id) is None:
         sh.SONG_QUEUES[guild_id] = deque()
 
@@ -100,7 +102,9 @@ async def play(interaction: discord.Interaction, ricerca: str):
         await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
     else:
         await interaction.followup.send(f"Riproduco: **[{title}]({url})**", ephemeral=True)
+        print('riproduco')
         await play_next_song(voice_client, guild_id, interaction.channel)
+
 
 
 async def play_next_song(voice_client, guild_id, channel):
@@ -123,6 +127,11 @@ async def play_next_song(voice_client, guild_id, channel):
 
         source = discord.FFmpegOpusAudio(audio_url, **ffmpeg_options)
 
+        try:
+            await bot.http.edit_voice_channel_status(status=title, channel_id=voice_client.channel.id)
+        except Exception as e:
+            print(e)
+
         def after_play(error):
             if error:
                 print(f"Whoops! Non sono riuscita a riprodurre {title}: {error}")
@@ -135,8 +144,13 @@ async def play_next_song(voice_client, guild_id, channel):
         voice_client.play(source, after=after_play)
         # asyncio.create_task(channel.send(f"Now playing: **{title}**"))
     else:
+        try:
+            await bot.http.edit_voice_channel_status(status=None, channel_id=voice_client.channel.id)
+        except Exception as e:
+            print(e)
         await voice_client.disconnect()
         sh.SONG_QUEUES[guild_id] = deque()
+
 
 
 async def main():
