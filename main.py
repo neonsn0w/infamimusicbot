@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from collections import deque
 import asyncio
 import random
-import requests
 
 from utils import string_functions as sf
 from utils import shared as sh
