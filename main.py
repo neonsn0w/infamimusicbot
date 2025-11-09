@@ -102,7 +102,6 @@ async def play(interaction: discord.Interaction, ricerca: str):
         await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
     else:
         await interaction.followup.send(f"Riproduco: **[{title}]({url})**", ephemeral=True)
-        print('riproduco')
         await play_next_song(voice_client, guild_id, interaction.channel)
 
 
