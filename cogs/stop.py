@@ -41,6 +41,10 @@ class Stop(commands.Cog):
         # If something is playing or paused, stop it
         if voice_client.is_playing() or voice_client.is_paused():
             voice_client.stop()
+            try:
+                await self.bot.http.edit_voice_channel_status(status=None, channel_id=voice_client.channel.id)
+            except Exception as e:
+                print(e)
 
         await voice_client.disconnect()
 

@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 from collections import deque
 import asyncio
 import random
-
+import requests
+from bs4 import BeautifulSoup
+import re
 from utils import string_functions as sf
 from utils import shared as sh
 
@@ -77,6 +79,15 @@ async def play(interaction: discord.Interaction, ricerca: str):
         title = results.get("title", "Untitled")
 
     else: # ricerca
+        if ricerca.startswith('https://open.spotify.com/track'):
+            r = requests.get(ricerca)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            title = soup.find('title')
+            title_text = str(title).split('>')[1].split('<')[0]
+            ricerca = title_text.split(' - song and lyrics by ')[0] + '-' + title_text.split(' - song and lyrics by ')[1].split('|')[0].strip()
+        else:
+            pass
+
         results = await search_ytdlp_async(f"ytsearch1:{ricerca}", ydl_options)
 
         if not results or 'entries' not in results or not results['entries']:
@@ -91,17 +102,26 @@ async def play(interaction: discord.Interaction, ricerca: str):
         title = first_entry.get('title', video_info.get('title', 'Untitled'))
 
     guild_id = str(interaction.guild_id)
+    uid = str(interaction.user.id)
 
     if sh.SONG_QUEUES.get(guild_id) is None:
         sh.SONG_QUEUES[guild_id] = deque()
 
-    sh.SONG_QUEUES[guild_id].append((audio_url, title, url))
+
+    try:
+        sh.SONG_QUEUES[guild_id].append((audio_url, title, url, uid))
+    except Exception as e:
+        print(e)
 
     if voice_client.is_playing() or voice_client.is_paused():
         await interaction.followup.send(f"Aggiunto alla coda: **[{title}]({url})**", ephemeral=True)
     else:
         await interaction.followup.send(f"Riproduco: **[{title}]({url})**", ephemeral=True)
-        await play_next_song(voice_client, guild_id, interaction.channel)
+        try:
+            await play_next_song(voice_client, guild_id, interaction.channel)
+        except Exception as e:
+            print(e)
+            
 
 
 
@@ -110,9 +130,9 @@ async def play_next_song(voice_client, guild_id, channel):
         if len(sh.SONG_QUEUES[guild_id]) > 2:
             randsong = random.randint(1, len(sh.SONG_QUEUES[guild_id]) - 1)
         if guild_id not in sh.SHUFFLED_QUEUES:
-            audio_url, title, url = sh.SONG_QUEUES[guild_id][0]
+            audio_url, title, url, uid = sh.SONG_QUEUES[guild_id][0]
         elif guild_id in sh.SHUFFLED_QUEUES:
-            audio_url, title, url = sh.SONG_QUEUES[guild_id][randsong]
+            audio_url, title, url, uid = sh.SONG_QUEUES[guild_id][randsong]
 
         ffmpeg_options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
