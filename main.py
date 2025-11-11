@@ -80,11 +80,16 @@ async def play(interaction: discord.Interaction, ricerca: str):
 
     else: # ricerca
         if ricerca.startswith('https://open.spotify.com/track'):
-            r = requests.get(ricerca)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            title = soup.find('title')
-            title_text = str(title).split('>')[1].split('<')[0]
-            ricerca = title_text.split(' - song and lyrics by ')[0] + '-' + title_text.split(' - song and lyrics by ')[1].split('|')[0].strip()
+            try:
+                r = requests.get(ricerca)
+                soup = BeautifulSoup(r.text, 'html.parser')
+                title = soup.select_one('title')
+                ricerca = title.contents[0].split(' - song and lyrics by ')[0] + '-' + title.contents[0].split(' - song and lyrics by ')[1].split('|')[0].strip()
+                print(ricerca or 'whoops!')
+                
+            except Exception as e:
+                print(e)
+                await interaction.followup.send(f"Whoops! You have to put the cd in your computer.\n#- {e}", ephemeral=True)
         else:
             pass
 
